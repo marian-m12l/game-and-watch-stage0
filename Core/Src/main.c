@@ -26,7 +26,7 @@
 #include "gw_sdcard.h"
 #include "gw_lcd.h"
 #include "gw_linker.h"
-#include "bootloader.h"
+#include "stage0.h"
 
 #include "bq24072.h"
 
@@ -158,23 +158,6 @@ void GW_EnterDeepSleep(void)
       HAL_Delay(50);
   }
 
-  // Unmount Fs and Deinit SD Card if needed
-  if (fs_mounted) {
-    f_unmount("");
-  }
-  switch (sdcard_hw_type) {
-    case SDCARD_HW_SPI1:
-    case SDCARD_HW_SPI1_UNSUPPORTED_FS:
-      sdcard_deinit_spi1();
-      break;
-    case SDCARD_HW_OSPI1:
-    case SDCARD_HW_OSPI1_UNSUPPORTED_FS:
-      sdcard_deinit_ospi1();
-      break;
-    default:
-      break;
-  }
-
   HAL_PWR_EnterSTANDBYMode();
 
   // Execution stops here, this function will not return
@@ -200,6 +183,15 @@ void wdog_refresh()
 
 /* USER CODE END 0 */
 
+
+static void __attribute__((naked)) start_app(void (*const pc)(void), uint32_t sp)
+{
+    __asm("           \n\
+          msr msp, r1 /* load r1 into MSP */\n\
+          bx r0       /* branch to the address at r0 */\n\
+    ");
+}
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -209,6 +201,16 @@ int main(void)
   /* USER CODE BEGIN 1 */
   for(int i = 0; i < 1000000; i++) {
     __NOP();
+  }
+
+  if(*BOOTLOADER_MAGIC_ADDRESS == BOOTLOADER_MAGIC_FORCE) {
+      printf("Magic jump 0x%08lX\n", *BOOTLOADER_JUMP_ADDRESS);
+      *BOOTLOADER_MAGIC_ADDRESS = 0;
+      uint32_t sp = (*BOOTLOADER_JUMP_ADDRESS)[0];
+      uint32_t pc = (*BOOTLOADER_JUMP_ADDRESS)[1];
+      start_app((void (* const)(void)) pc, (uint32_t) sp);
+
+      //while (1) {}
   }
 
   // Reset the log write pointer
@@ -269,7 +271,7 @@ int main(void)
 
   bq24072_init();
 
-  bootloader_main();
+  stage0_main();
 
   while (1)
   {

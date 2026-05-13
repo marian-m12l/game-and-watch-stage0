@@ -53,7 +53,7 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = _stack_top;    /* end of RAM */
+_estack = 0x2001b000;    /* end of RAM */
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _Heap_Size = 32 * 1024;     /* required amount of heap */
@@ -66,12 +66,12 @@ __ITCMRAM_LENGTH__  = 64K;
 __DTCMRAM_LENGTH__  = 128K;
 __RAM_LENGTH__  = 1024K;
 __AHBRAM_LENGTH__   = 128K;
-__FLASH_LENGTH__    = 256K; /* Bank 1 */
+__FLASH_LENGTH__    = 64K; /* Bank 1 */
 
 __RAM_START__       = 0x24000000;
 __RAM_UC_START__    = __RAM_START__;
 
-__INTFLASH__ = DEFINED(__INTFLASH__) ? __INTFLASH__ : 0x08000000;
+__INTFLASH__ = DEFINED(__INTFLASH__) ? __INTFLASH__ : 0x08020000;
 
 /* Specify the memory areas */
 MEMORY

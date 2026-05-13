@@ -48,7 +48,7 @@ INTFLASH_ADDRESS = 0x08100000
 endif
 else  # ifdef INTFLASH_BANK
 # not defined INTFLASH_ADDRESS INTFLASH_BANK
-INTFLASH_ADDRESS = 0x08000000
+INTFLASH_ADDRESS = 0x08020000
 INTFLASH_BANK = 1
 endif
 endif
@@ -426,7 +426,7 @@ FORCE:
 Core/Inc/gittag.h: FORCE | $(BUILD_DIR)
 	$(V)./scripts/update_gittag.sh $@
 
-$(BUILD_DIR)/core/bootloader.o: Core/Inc/gittag.h
+$(BUILD_DIR)/core/stage0.o: Core/Inc/gittag.h
 
 $(BUILD_DIR)/%.o: %.s Makefile.common Makefile | $(BUILD_DIR)
 	$(V)$(ECHO) [ AS ] $(notdir $<)
@@ -491,6 +491,48 @@ flash: $(BUILD_DIR)/$(TARGET).bin
 		-- start $(INTFLASH_ADDRESS) \
 		$(RESET_DBGMCU_CMD)
 .PHONY: flash
+
+OPENOCD ?= openocd
+ADAPTER ?= jlink
+
+# Configure BOOT_ADD0 to 0x0802 --> stage0
+openocd_set_boot_add0:
+	$(OPENOCD) -f scripts/interface_$(ADAPTER).cfg -c "init; reset" -c "mww 0x52002008 0x08192A3B; mww 0x52002008 0x4C5D6E7F; sleep 100; mww 0x52002044 0x1ff00802; sleep 100; mwb 0x52002018 0x02; sleep 200; reset; exit"
+
+openocd_unset_boot_add0:
+	$(OPENOCD) -f scripts/interface_$(ADAPTER).cfg -c "init; reset" -c "mww 0x52002008 0x08192A3B; mww 0x52002008 0x4C5D6E7F; sleep 100; mww 0x52002044 0x1ff00800; sleep 100; mwb 0x52002018 0x02; sleep 200; reset; exit"
+
+openocd_set_swap_bank:
+	$(OPENOCD) -f scripts/interface_$(ADAPTER).cfg -c "init; reset" -c "mww 0x52002008 0x08192A3B; mww 0x52002008 0x4C5D6E7F; sleep 100; mwb 0x52002023 0x80; sleep 100; mwb 0x52002018 0x02; sleep 200; reset; exit"
+
+openocd_unset_swap_bank:
+	$(OPENOCD) -f scripts/interface_$(ADAPTER).cfg -c "init; reset" -c "mww 0x52002008 0x08192A3B; mww 0x52002008 0x4C5D6E7F; sleep 100; mwb 0x52002023 0x00; sleep 100; mwb 0x52002018 0x02; sleep 200; reset; exit"
+
+flash_stage0: openocd_unset_swap_bank $(BUILD_DIR)/$(TARGET).bin
+	@$(GNWMANAGER) flash 0x08020000 $(BUILD_DIR)/$(TARGET).bin \
+		-- flash 0x08120000 $(BUILD_DIR)/$(TARGET).bin \
+		$(RESET_DBGMCU_CMD)
+.PHONY: flash_stage0
+
+flash_mario_fw: openocd_unset_swap_bank backups/internal_flash_backup_mario.bin backups/flash_backup_mario.bin
+	@$(GNWMANAGER) flash 0x08000000 backups/internal_flash_backup_mario.bin \
+		-- flash ext backups/flash_backup_mario.bin --offset=0x400000 \
+		$(RESET_DBGMCU_CMD)
+.PHONY: flash_mario_fw
+
+backups/flash_backup_zelda_1mib.bin: backups/flash_backup_zelda.bin
+	dd bs=1024 skip=0 count=1024 2>/dev/null > backups/flash_backup_zelda_1mib.bin < backups/flash_backup_zelda.bin
+
+backups/flash_backup_zelda_3mib.bin: backups/flash_backup_zelda.bin
+	dd bs=1024 skip=1024 count=3072 2>/dev/null > backups/flash_backup_zelda_3mib.bin < backups/flash_backup_zelda.bin
+
+flash_zelda_fw: openocd_unset_swap_bank backups/internal_flash_backup_zelda.bin backups/flash_backup_zelda_1mib.bin backups/flash_backup_zelda_3mib.bin
+	@$(GNWMANAGER) flash 0x08100000 backups/internal_flash_backup_zelda.bin \
+		-- flash ext backups/flash_backup_zelda_1mib.bin --offset=0x500000 \
+		-- flash ext backups/flash_backup_zelda_3mib.bin --offset=0x100000 \
+		$(RESET_DBGMCU_CMD)
+.PHONY: flash_zelda_fw
+
 
 monitor:
 	@$(GNWMANAGER) monitor

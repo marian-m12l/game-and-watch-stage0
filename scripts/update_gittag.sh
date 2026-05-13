@@ -15,7 +15,7 @@ fi
 
 GITTAG=$(git describe --tags --dirty=+ 2> /dev/null || echo "NOTAG")
 
-echo -e "#ifndef GIT_TAG\n#define GIT_TAG \"G&W Bootloader "${GITTAG}"\"\n#endif" > "${TMPFILE}"
+echo -e "#ifndef GIT_TAG\n#define GIT_TAG \"G&W Stage 0 "${GITTAG}"\"\n#endif" > "${TMPFILE}"
 
 if ! diff -q ${TMPFILE} ${gittagfile} > /dev/null 2> /dev/null; then
     echo "Updating git tag file ${gittagfile}"

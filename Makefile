@@ -1,4 +1,4 @@
-TARGET = gnw_bootloader
+TARGET = gnw_stage0
 
 # To enable verbose, append VERBOSE=1 to make, e.g.:
 # make VERBOSE=1
@@ -19,7 +19,7 @@ Core/Src/gw_gui.c \
 Core/Src/gw_lcd.c \
 Core/Src/porting/gw_alloc.c \
 Core/Src/main.c \
-Core/Src/bootloader.c \
+Core/Src/stage0.c \
 Core/Src/syscalls.c \
 Core/Src/bq24072.c \
 Core/Src/stm32h7xx_hal_msp.c \
