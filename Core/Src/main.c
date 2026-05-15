@@ -204,7 +204,14 @@ int main(void)
   }
 
   if(*BOOTLOADER_MAGIC_ADDRESS == BOOTLOADER_MAGIC_FORCE) {
-      printf("Magic jump 0x%08lX\n", *BOOTLOADER_JUMP_ADDRESS);
+      printf("Magic jump 0x%p\n", *BOOTLOADER_JUMP_ADDRESS);
+      printf("swap = %d\n", READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U);
+
+      // TODO Sleep a little bit
+      for(int i = 0; i < 1000000; i++) {
+        __NOP();
+      }
+
       *BOOTLOADER_MAGIC_ADDRESS = 0;
       uint32_t sp = (*BOOTLOADER_JUMP_ADDRESS)[0];
       uint32_t pc = (*BOOTLOADER_JUMP_ADDRESS)[1];

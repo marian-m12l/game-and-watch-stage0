@@ -12,6 +12,9 @@
 #include "ff.h"
 #include "diskio.h"
 #include "stage0.h"
+#include "stm32h7b0xx.h"
+
+#define FLASH_TIMEOUT_VALUE              50000U /* 50 s */
 
 #define RAM_START D1_AXISRAM_BASE /* 0x24000000 */
 #define MAX_FILE_SIZE (1024 * 1024) /* 1MB of SRAM */
@@ -61,10 +64,6 @@ static void __attribute__((naked)) start_app(void (*const pc)(void), uint32_t sp
 static void show_info(bool show_press_key) {
     uint8_t line = 0;
     char text[50];
-    // TODO
-    uint32_t sp = *((uint32_t *)FLASH_BANK2_BASE);
-    uint32_t pc = *((uint32_t *)FLASH_BANK2_BASE + 1);
-    unsigned long size_gb = 0;
     enable_screen();
     switch_ospi_gpio(true);
     gw_gui_draw_text(10, line++ * 10, GIT_TAG, GUI_WHITE);
@@ -202,33 +201,22 @@ void stage0_main(void)
                 }
                 // TODO Don't swap intflash banks
                 gw_gui_draw_text(10, line++ * 10, "Non-swapped intflash banks", GUI_WHITE);
-                if ((*((uint32_t*)0x52002018) & 0x80000000) == 0) {
+                if (READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U) {
                     gw_gui_draw_text(10, line++ * 10, "Intflash banks already non-swapped", GUI_GREEN);
                     printf("swap OK\n");
                 } else {
                     printf("un-swap\n");
-                    volatile uint32_t* FLASH_KEY = (uint32_t*) 0x52002008;
-                    *FLASH_KEY = 0x08192a3b;
-                    *FLASH_KEY = 0x4c5d6e7f;
-                    // TODO Sleep ?
-                    for(int i = 0; i < 1000000; i++) {
-                        __NOP();
+                    HAL_FLASH_OB_Unlock();
+                    /* Clear SWAP_BANK Bit */
+                    CLEAR_BIT(FLASH->OPTSR_PRG, /* FIXME FLASH_OPTSR_SWAP_BANK_OPT*/ 0x80000000);
+                    HAL_StatusTypeDef status = FLASH_OB_WaitForLastOperation((uint32_t)FLASH_TIMEOUT_VALUE);
+                    if (status != HAL_OK) {
+                        // TODO Handle error, abort launch?
                     }
-                    volatile uint32_t* BANK_SWAP = (uint32_t*) 0x52002020;
-                    *BANK_SWAP &= 0x7fffffff;
-                    // TODO Sleep ?
-                    for(int i = 0; i < 1000000; i++) {
-                        __NOP();
-                    }
-                    volatile uint32_t* FLASH_OPTCR = (uint32_t*) 0x52002018;
-                    *FLASH_OPTCR |= 0x00000002;
-                    // TODO Sleep ?
-                    for(int i = 0; i < 1000000; i++) {
-                        __NOP();
-                    }
+                    HAL_FLASH_OB_Launch();
                 }
-                sprintf(text, "BANK_SWAP: %d", (*((uint32_t*)0x52002018) & 0x80000000) != 0);
-                printf("swap = %d\n", (*((uint32_t*)0x52002018) & 0x80000000) != 0);
+                sprintf(text, "BANK_SWAP: %d", READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U);
+                printf("swap = %d\n", READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U);
                 gw_gui_draw_text(10, line++ * 10, text, GUI_WHITE);
                 // TODO Run 0x08000000
                 printf("starting 0x08000000\n");
@@ -291,33 +279,22 @@ void stage0_main(void)
                 }
                 // TODO Swap intflash banks
                 gw_gui_draw_text(10, line++ * 10, "Swapped intflash banks", GUI_WHITE);
-                if ((*((uint32_t*)0x52002018) & 0x80000000) != 0) {
+                if (READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U) {
                     gw_gui_draw_text(10, line++ * 10, "Intflash banks already swapped", GUI_GREEN);
                     printf("swap OK\n");
                 } else {
                     printf("swap\n");
-                    volatile uint32_t* FLASH_KEY = (uint32_t*) 0x52002008;
-                    *FLASH_KEY = 0x08192a3b;
-                    *FLASH_KEY = 0x4c5d6e7f;
-                    // TODO Sleep ?
-                    for(int i = 0; i < 1000000; i++) {
-                        __NOP();
+                    HAL_FLASH_OB_Unlock();
+                    /* Set SWAP_BANK Bit */
+                    SET_BIT(FLASH->OPTSR_PRG, /* FIXME FLASH_OPTSR_SWAP_BANK_OPT*/ 0x80000000);
+                    HAL_StatusTypeDef status = FLASH_OB_WaitForLastOperation((uint32_t)FLASH_TIMEOUT_VALUE);
+                    if (status != HAL_OK) {
+                        // TODO Handle error, abort launch?
                     }
-                    volatile uint32_t* BANK_SWAP = (uint32_t*) 0x52002020;
-                    *BANK_SWAP |= 0x80000000;
-                    // TODO Sleep ?
-                    for(int i = 0; i < 1000000; i++) {
-                        __NOP();
-                    }
-                    volatile uint32_t* FLASH_OPTCR = (uint32_t*) 0x52002018;
-                    *FLASH_OPTCR |= 0x00000002;
-                    // TODO Sleep ?
-                    for(int i = 0; i < 1000000; i++) {
-                        __NOP();
-                    }
+                    HAL_FLASH_OB_Launch();
                 }
-                sprintf(text, "BANK_SWAP: %d", (*((uint32_t*)0x52002018) & 0x80000000) != 0);
-                printf("swap = %d\n", (*((uint32_t*)0x52002018) & 0x80000000) != 0);
+                sprintf(text, "BANK_SWAP: %d", READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U);
+                printf("swap = %d\n", READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U);
                 gw_gui_draw_text(10, line++ * 10, text, GUI_WHITE);
                 // TODO Run 0x08000000
                 printf("starting 0x08000000\n");
