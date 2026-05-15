@@ -201,7 +201,7 @@ void stage0_main(void)
                 }
                 // TODO Don't swap intflash banks
                 gw_gui_draw_text(10, line++ * 10, "Non-swapped intflash banks", GUI_WHITE);
-                if (READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) != 0U) {
+                if (READ_BIT(FLASH->OPTCR, /* FIXME FLASH_OPTCR_SWAP_BANK*/ 0x80000000) == 0U) {
                     gw_gui_draw_text(10, line++ * 10, "Intflash banks already non-swapped", GUI_GREEN);
                     printf("swap OK\n");
                 } else {
